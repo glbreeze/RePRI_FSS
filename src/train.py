@@ -312,6 +312,7 @@ def do_epoch(args: argparse.Namespace,
 
 
 if __name__ == "__main__":
+    print('gpu count ', torch.cuda.device_count())
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(x) for x in args.gpus)
 
