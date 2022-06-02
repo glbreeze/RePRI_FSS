@@ -4,13 +4,13 @@ DATA:
   train_split: 0
   test_split: default
   train_list: lists/pascal/train.txt
-  data_root: data/pascal/
+  data_root: ../dataset/VOCdevkit/VOC2012
   val_list: lists/pascal/val.txt
   num_classes_tr: 16  # Counting background for training
   num_classes_val: 5
   use_split_coco: False
   workers: 3
-  image_size: 417
+  image_size: 473
   padding_label: 255
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
