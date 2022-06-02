@@ -11,8 +11,6 @@
 #SBATCH --output=seg.out
 #SBATCH --gres=gpu:1  # How much gpu need, n is the number
 
-module purge
-
 DATA=$1
 SPLIT=$2
 GPU=$3
