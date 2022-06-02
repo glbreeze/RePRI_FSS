@@ -325,6 +325,9 @@ if __name__ == "__main__":
     distributed = world_size > 1
     args.distributed = distributed
     args.port = find_free_port()
+
+    print('gpu count ', torch.cuda.device_count())
+    print('gpu device id ', torch.cuda.current_device())
     mp.spawn(main_worker,
              args=(world_size, args),
              nprocs=world_size,

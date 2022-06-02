@@ -102,8 +102,10 @@ def episodic_validate(args: argparse.Namespace,
 
     H, W = args.image_size, args.image_size
     c = model.module.bottleneck_dim
-    h = model.module.feature_res[0]
-    w = model.module.feature_res[1]
+    if args.image_size == 473:
+        h, w = 60, 60
+    else:
+        h, w = model.module.feature_res   # (53, 53)
 
     runtimes = torch.zeros(args.n_runs)
     deltas_init = torch.zeros((args.n_runs, nb_episodes, args.batch_size_val))

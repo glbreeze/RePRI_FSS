@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=seg
+#SBATCH --job-name=RePRI
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
@@ -31,7 +31,7 @@ singularity exec --nv \
 						    layers ${LAYERS} \
 						    gpus ${GPU} \
 						    visdom_port 8098 \
-							 > ${dirname}/log_${SHOT}.txt 2>&1"
+							 > ${dirname}/log.txt 2>&1"
 
 echo "finish"
 
