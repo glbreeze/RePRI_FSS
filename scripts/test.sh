@@ -31,11 +31,17 @@ fi
 
 for SPLIT in $SPLITS
 do
-	dirname="results/test/arch=resnet-${LAYERS}/data=${DATA}/shot=shot_${SHOT}/split=split_${SPLIT}"
+  dirname="results/test/arch=resnet-${LAYERS}/data=${DATA}/shot=shot_${SHOT}/split=split_${SPLIT}"
 	mkdir -p -- "$dirname"
-	python3 -m src.test --config config_files/${DATA}.yaml \
-						--opts train_split ${SPLIT} \
-							   batch_size_val 1 \
+  echo "start"
+  singularity exec --nv \
+              --overlay /scratch/lg154/python36/python36.ext3:ro \
+              --overlay /scratch/lg154/sseg/dataset/coco2014.sqf:ro \
+              /scratch/work/public/singularity/cuda11.2.2-cudnn8-devel-ubuntu20.04.sif \
+              /bin/bash -c " source /ext3/env.sh;
+              python -m src.test --config config_files/${DATA}.yaml \
+               --opts train_split ${SPLIT} \
+                  batch_size_val 1 \
 							   shot ${SHOT} \
 							   layers ${LAYERS} \
 							   FB_param_update "[10]" \
@@ -44,6 +50,10 @@ do
 							   cls_lr 0.025 \
 							   gpus ${GPU} \
 							   test_num 1000 \
-							   n_runs 5 \
-							   | tee ${dirname}/log_${PI}.txt
+							   n_runs 1 \
+             > ${dirname}/log_split${SPLIT}.txt 2>&1"
+
+  echo "finish"
+
+
 done
