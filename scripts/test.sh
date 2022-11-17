@@ -1,3 +1,16 @@
+#!/bin/bash
+
+#SBATCH --job-name=RePRI
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=20GB
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=END
+#SBATCH --mail-user=lg154@nyu.edu
+#SBATCH --output=seg.out
+#SBATCH --gres=gpu:1  # How much gpu need, n is the number
+
 DATA=$1
 SHOT=$2
 GPU=$3
@@ -22,7 +35,7 @@ do
 	mkdir -p -- "$dirname"
 	python3 -m src.test --config config_files/${DATA}.yaml \
 						--opts train_split ${SPLIT} \
-							   batch_size_val ${bsz_val} \
+							   batch_size_val 1 \
 							   shot ${SHOT} \
 							   layers ${LAYERS} \
 							   FB_param_update "[10]" \
