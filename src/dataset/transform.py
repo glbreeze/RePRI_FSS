@@ -139,7 +139,8 @@ class Resize(object):
 
 class RandScale(object):
     # Randomly resize image & label with scale factor in [scale_min, scale_max]
-    def __init__(self, scale, aspect_ratio=None):
+    # fixed_size is only needed if want to output fixed size (473) image & label
+    def __init__(self, scale, aspect_ratio=None, fixed_size=None, padding=None):
         assert (isinstance(scale, collections.Iterable) and len(scale) == 2)
         if isinstance(scale, collections.Iterable) and len(scale) == 2 \
                 and isinstance(scale[0], numbers.Number) and isinstance(scale[1], numbers.Number) \
@@ -149,14 +150,13 @@ class RandScale(object):
             raise (RuntimeError("segtransform.RandScale() scale param error.\n"))
         if aspect_ratio is None:
             self.aspect_ratio = aspect_ratio
-        elif isinstance(aspect_ratio, collections.Iterable) \
-                and len(aspect_ratio) == 2 \
-                and isinstance(aspect_ratio[0], numbers.Number) \
-                and isinstance(aspect_ratio[1], numbers.Number) \
+        elif isinstance(aspect_ratio, collections.Iterable) and len(aspect_ratio) == 2 \
+                and isinstance(aspect_ratio[0], numbers.Number) and isinstance(aspect_ratio[1], numbers.Number) \
                 and 0 < aspect_ratio[0] < aspect_ratio[1]:
             self.aspect_ratio = aspect_ratio
         else:
             raise (RuntimeError("segtransform.RandScale() aspect_ratio param error.\n"))
+        self.fixed_size, self.padding = fixed_size, padding
 
     def __call__(self, image, label):
         temp_scale = self.scale[0] + (self.scale[1] - self.scale[0]) * random.random()
@@ -166,11 +166,83 @@ class RandScale(object):
             temp_aspect_ratio = math.sqrt(temp_aspect_ratio)
         scale_factor_x = temp_scale * temp_aspect_ratio
         scale_factor_y = temp_scale / temp_aspect_ratio
-        image = cv2.resize(image, None, fx=scale_factor_x, fy=scale_factor_y,
-                           interpolation=cv2.INTER_LINEAR)
-        label = cv2.resize(label, None, fx=scale_factor_x, fy=scale_factor_y,
-                           interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, None, fx=scale_factor_x, fy=scale_factor_y, interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, None, fx=scale_factor_x, fy=scale_factor_y, interpolation=cv2.INTER_NEAREST)
+
+        if self.fixed_size is not None and self.fixed_size>0:
+            new_h, new_w, _ = image.shape
+
+            back_crop = np.zeros((self.fixed_size, self.fixed_size, 3))
+            if self.padding:
+                back_crop[:, :, 0] = self.padding[0]
+                back_crop[:, :, 1] = self.padding[1]
+                back_crop[:, :, 2] = self.padding[2]
+            back_crop[:new_h, :new_w, :] = image
+            image = back_crop
+
+            back_crop_mask = np.ones((self.fixed_size, self.fixed_size)) * 255
+            back_crop_mask[:new_h, :new_w] = label
+            label = back_crop_mask
         return image, label
+
+
+class FitCrop(object):
+    """Crops the given ndarray image (H*W*C or H*W).
+    Args:
+        size (sequence or int): Desired output size of the crop. If size is an
+        int instead of sequence like (h, w), a square crop (size, size) is made.
+    """
+    def __init__(self, k=2, multi = False):
+        self.k = k  # whether to crop at 1/2 or 1/3,  if fg is very small portion, will cutoff bigger area
+        self.multi = multi  # whether to return multiple cropped image
+
+    def __call__(self, image, label):
+        h, w, _ = image.shape
+
+        label_binary = label.copy()
+        label_binary[label_binary == 255] = 0
+        _, labels = cv2.connectedComponents(label_binary)  # labels 为联通域 的 idx
+
+        freq = np.bincount(labels.flatten())
+        freq[0] = 0
+        obj_idx = np.argmax(freq)      # id for 最大联通域
+        pxl_cnt = freq[obj_idx]
+        h0, h1, w0, w1 = self.get_coord(labels, obj_idx, h, w)
+        image = image[h0:h1, w0:w1]
+        label = label[h0:h1, w0:w1]
+
+        if self.multi and len(freq) >= 3:
+            freq[obj_idx] = 0
+            obj_idx2 = np.argmax(freq)
+            pxl_cnt2 = freq[obj_idx2]
+
+            if pxl_cnt2 / pxl_cnt >= 0.3:
+                h0, h1, w0, w1 = self.get_coord(labels, obj_idx2, h, w)
+                image2 = image[h0:h1, w0:w1]
+                label2 = label[h0:h1, w0:w1]
+
+                return image, label, image2, label2
+
+        return image, label
+
+    def get_coord(self, labels, obj_idx, h, w):
+        mask_pos = np.where(labels == obj_idx)
+        min_h, max_h, min_w, max_w = np.min(mask_pos[0]), np.max(mask_pos[0]), np.min(mask_pos[1]), np.max(mask_pos[1])
+
+        h0, h1 = min_h // self.k, h - (h - max_h) // self.k
+        w0, w1 = min_w // self.k, w - (w - max_w) // self.k
+
+        if (h1 - h0) / (w1 - w0) <= 0.7:  # height too small
+            if h0 <= h - h1:
+                h0 = 0
+            else:
+                h1 = h
+        elif (h1 - h0) / (w1 - w0) >= 1.5:  # width too small
+            if w0 <= w - w1:
+                w0 = 0
+            else:
+                w1 = w
+        return h0, h1, w0, w1
 
 
 class Crop(object):

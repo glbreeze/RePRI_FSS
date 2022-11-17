@@ -1,6 +1,5 @@
 ## modified the code: args.batch_size_val == 1
 
-
 import os
 import random
 import numpy as np

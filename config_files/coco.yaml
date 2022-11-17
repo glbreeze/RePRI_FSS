@@ -20,6 +20,13 @@ DATA:
   rot_max: 10
   augmentations: ['resize']
 
+  meta_aug: 2 # 1 means no augmentation
+  padding: avg
+  aug_th: [0.15, 0.30]
+  aug_type: 1
+  wt_file: 1
+
+
 TRAIN:
   ckpt_path: checkpoints/
   batch_size: 12

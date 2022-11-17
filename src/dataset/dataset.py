@@ -183,6 +183,13 @@ class EpisodicData(Dataset):
         self.data_list, self.sub_class_file_list = make_dataset(args.data_root, data_list_path, self.class_list)
         self.transform = transform
 
+        self.meta_aug = args.get('meta_aug', 0)
+        self.aug_th = args.get('aug_th', [0.15, 0.30])
+        self.aug_type = args.get('aug_type', 0)
+        self.im_size = args.image_size
+        if self.meta_aug > 1:
+            print("INFO using data augmentation, meta_aug:{}".format(self.meta_aug))
+
     def __len__(self):
         return len(self.data_list)
 
@@ -272,13 +279,59 @@ class EpisodicData(Dataset):
         # == Forward images through transforms =================
         if self.transform is not None:
             qry_img, target = self.transform(image, label)
-            for k in range(shot):
-                support_image_list[k], support_label_list[k] = self.transform(support_image_list[k], support_label_list[k])
-                support_image_list[k] = support_image_list[k].unsqueeze(0)
-                support_label_list[k] = support_label_list[k].unsqueeze(0)
+
+            for k in range(self.shot):
+                if self.meta_aug > 1:
+                    org_img, org_label = self.transform(support_image_list[k], support_label_list[k])  # flip and resize
+                    label_freq = np.bincount(support_label_list[k].flatten())
+                    fg_ratio = label_freq[1] / (label_freq[0] + label_freq[1])  # np.sum(label_freq)
+
+                    if self.aug_type == 0:
+                        new_img, new_label = self.get_aug_data0(fg_ratio, support_image_list[k], support_label_list[k])
+                    elif self.aug_type == 1:
+                        new_img, new_label = self.get_aug_data1(fg_ratio, support_image_list[k], support_label_list[k])
+
+                    if new_img is not None:
+                        support_image_list[k] = torch.cat([org_img.unsqueeze(0), new_img], dim=0)
+                        support_label_list[k] = torch.cat([org_label.unsqueeze(0), new_label], dim=0)
+                    else:
+                        support_image_list[k], support_label_list[k] = org_img.unsqueeze(0), org_label.unsqueeze(0)
+
+                else:
+                    support_image_list[k], support_label_list[k] = self.transform(support_image_list[k], support_label_list[k])
+                    support_image_list[k] = support_image_list[k].unsqueeze(0)
+                    support_label_list[k] = support_label_list[k].unsqueeze(0)
 
         # == Reshape properly ==================================
         spprt_imgs = torch.cat(support_image_list, 0)
         spprt_labels = torch.cat(support_label_list, 0)
 
         return qry_img, target, spprt_imgs, spprt_labels, subcls_list, support_image_path_list, [image_path]
+
+    def get_aug_data0(self, fg_ratio, support_image, support_label):  # only size augmentation, no color augmentation
+        if fg_ratio <= self.aug_th[0] or fg_ratio >= self.aug_th[1]:
+            if fg_ratio <= self.aug_th[0]:
+                k = 2 if fg_ratio <= 0.03 else 3  # whether to crop at 1/2 or 1/3
+                meta_trans = transform.Compose([transform.FitCrop(k=k)] + self.transform.segtransform[-3:])
+            else:
+                scale = self.im_size / max(support_label.shape) * (0.7 if fg_ratio > 0.3 else 0.8)
+                meta_trans = transform.Compose([transform.RandScale(scale=(scale, scale + 0.05), fixed_size=self.im_size, padding=[0, 0, 0])] + self.transform.segtransform[-2:])
+            new_img, new_label = meta_trans(support_image, support_label)
+            return new_img.unsqueeze(0), new_label.unsqueeze(0)
+        else:
+            new_img, new_label = self.transform(support_image, support_label)
+            return new_img.unsqueeze(0), new_label.unsqueeze(0)
+
+    def get_aug_data1(self, fg_ratio, support_image, support_label):   # only size augmentation, no color augmentation
+        if fg_ratio <= self.aug_th[0] or fg_ratio >= self.aug_th[1]:
+            if fg_ratio <= self.aug_th[0]:
+                k = 2 if fg_ratio <= 0.03 else 3  # whether to crop at 1/2 or 1/3
+                meta_trans = transform.Compose([transform.FitCrop(k=k)] + self.transform.segtransform[-3:])
+            else:
+                scale = self.im_size / max(support_label.shape) * (0.7 if fg_ratio > 0.3 else 0.8)
+                meta_trans = transform.Compose([transform.RandScale(scale=(scale, scale + 0.05), fixed_size=self.im_size, padding=[0,0,0])] + self.transform.segtransform[-2:])
+            new_img, new_label = meta_trans(support_image, support_label)
+            return new_img.unsqueeze(0), new_label.unsqueeze(0)
+        else:
+            return None, None
+
