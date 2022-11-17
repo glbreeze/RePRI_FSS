@@ -128,9 +128,9 @@ def episodic_validate(args: argparse.Namespace,
         runtime = 0
         for e in tqdm(range(nb_episodes)):
             t0 = time.time()
-            features_s = torch.zeros(args.batch_size_val, args.shot, c, h, w).to(dist.get_rank())
+            features_s = torch.zeros(args.batch_size_val, args.shot*args.meta_aug, c, h, w).to(dist.get_rank())
             features_q = torch.zeros(args.batch_size_val, 1, c, h, w).to(dist.get_rank())
-            gt_s = 255 * torch.ones(args.batch_size_val, args.shot, args.image_size,
+            gt_s = 255 * torch.ones(args.batch_size_val, args.shot*args.meta_aug, args.image_size,
                                     args.image_size).long().to(dist.get_rank())
             gt_q = 255 * torch.ones(args.batch_size_val, 1, args.image_size,
                                     args.image_size).long().to(dist.get_rank())

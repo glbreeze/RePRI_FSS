@@ -3,7 +3,7 @@ DATA:
   test_name: default
   train_split: 0
   test_split: default
-  data_root: data/coco/
+  data_root: /coco/
   train_list: lists/coco/train.txt
   val_list: lists/coco/val.txt
   num_classes_tr: 61 # Counting background for training
@@ -23,7 +23,7 @@ DATA:
   meta_aug: 2 # 1 means no augmentation
   padding: avg
   aug_th: [0.15, 0.30]
-  aug_type: 1
+  aug_type: 0
   wt_file: 1
 
 
